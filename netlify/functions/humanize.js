@@ -33,7 +33,7 @@ exports.handler = async function(event, context) {
         const response = await axios.post(
             'https://openrouter.ai/api/v1/chat/completions',
             {
-                model: "google/gemini-2.0-flash-lite-001:free", 
+                model: "google/gemini-2.0-flash-exp:free", 
                 messages: [
                     {
                         role: "system",
