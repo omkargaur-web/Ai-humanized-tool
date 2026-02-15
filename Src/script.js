@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Default dark theme
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') {
@@ -56,25 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
         wordCount.textContent = `Words: ${words.length}/300`;
         if (charCount) charCount.textContent = `Chars: ${text.length}`;
         
-        if (aiPercentage) {
-            const aiScore = calculateAIDetectionScore(text);
-            aiPercentage.textContent = `AI Score: ${aiScore}%`;
-        }
-        
         if (humanizeBtn) humanizeBtn.disabled = words.length === 0 || words.length > 300;
         wordCount.style.color = words.length > 300 ? 'red' : '';
-    }
-
-    function calculateAIDetectionScore(text) {
-        if (!text.trim()) return 0;
-        const aiPatterns = [/\bhowever\b/gi, /\bfurthermore\b/gi, /\bmoreover\b/gi, /\bin conclusion\b/gi];
-        let score = 0;
-        const totalWords = text.split(/\s+/).length || 1;
-        aiPatterns.forEach(p => {
-            const matches = text.match(p);
-            if (matches) score += (matches.length / totalWords) * 100;
-        });
-        return Math.min(Math.round(score + Math.random() * 20), 100);
     }
 
     // --- Actions ---
@@ -110,12 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
                 outputText.select();
                 document.execCommand('copy');
-                alert("Text Copied!");
             }
         });
     }
 
-    // --- API Call (THE REAL DEAL) ---
+    // --- API Call Section (FIXED) ---
     if (humanizeBtn) {
         humanizeBtn.addEventListener('click', async () => {
             const textToConvert = inputText.value.trim();
@@ -128,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             outputText.value = "AI is humanizing your text... Please wait.";
 
             try {
-                // `/api/humanize` call karega jo redirects ke zariye functions me jayega
+                // Backend function ko call karna
                 const response = await fetch("/api/humanize", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -138,18 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || "Server Error");
+                    // Purane hardcoded error message ki jagah ab asli error dikhega
+                    throw new Error(data.detail || data.error || "Server connection failed");
                 }
 
+                // Success: AI output dikhana
                 outputText.value = data.output;
                 
-                // Update output word count
                 const outWords = data.output.trim().split(/\s+/).filter(w => w.length > 0).length;
                 if(outputWordCount) outputWordCount.textContent = `Words: ${outWords}`;
 
             } catch (error) {
-                console.error("Error:", error);
-                outputText.value = `Error: ${error.message}. (Did you add OPENROUTER_API_KEY in Netlify dashboard?)`;
+                console.error("Error Details:", error);
+                // Agar key missing hai toh server ab ye message bhejega
+                outputText.value = `Error: ${error.message}`;
             } finally {
                 humanizeBtn.disabled = false;
                 btnText.style.display = 'inline';
@@ -158,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Initialization Calls ---
+    // --- Initialization ---
     initTheme();
     if (inputText) {
         inputText.addEventListener('input', updateCounts);
