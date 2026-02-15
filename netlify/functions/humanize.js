@@ -15,14 +15,18 @@ exports.handler = async function(event, context) {
     try {
         const body = JSON.parse(event.body);
         const userText = body.text;
+        
+        // Netlify dashboard se key read karna
         const apiKey = process.env.OPENROUTER_API_KEY;
 
-        // Diagnostic Check: Kya key mil rahi hai?
         if (!apiKey) {
             return {
                 statusCode: 500,
                 headers,
-                body: JSON.stringify({ error: "Netlify Variable 'OPENROUTER_API_KEY' not found!" })
+                body: JSON.stringify({ 
+                    error: "Configuration Error", 
+                    detail: "Netlify dashboard par OPENROUTER_API_KEY nahi mili. Kripya redeploy karein." 
+                })
             };
         }
 
@@ -33,7 +37,7 @@ exports.handler = async function(event, context) {
                 messages: [
                     {
                         role: "system",
-                        content: "You are a professional human editor. Rewrite the following text to make it sound 100% human and natural. Output only the rewritten text."
+                        content: "You are a professional human editor. Rewrite the text to be 100% human-like. Output only rewritten text."
                     },
                     {
                         role: "user",
@@ -44,9 +48,10 @@ exports.handler = async function(event, context) {
             {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`, 
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://netlify.app'
                 },
-                timeout: 30000 // 30 seconds wait time
+                timeout: 30000 
             }
         );
 
@@ -57,10 +62,7 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        // Asli error kya hai wo yahan dikhega
         const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
-        console.error("API Error:", errorDetail);
-        
         return {
             statusCode: 500,
             headers,
