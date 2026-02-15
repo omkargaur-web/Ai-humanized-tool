@@ -15,7 +15,7 @@ exports.handler = async function(event, context) {
     try {
         const body = JSON.parse(event.body);
         const userText = body.text;
-        
+
         // Netlify dashboard se key read karna
         const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -23,9 +23,9 @@ exports.handler = async function(event, context) {
             return {
                 statusCode: 500,
                 headers,
-                body: JSON.stringify({ 
-                    error: "Configuration Error", 
-                    detail: "Netlify dashboard par OPENROUTER_API_KEY nahi mili. Kripya redeploy karein." 
+                body: JSON.stringify({
+                    error: "Configuration Error",
+                    detail: "Netlify dashboard par OPENROUTER_API_KEY nahi mili. Kripya redeploy karein."
                 })
             };
         }
@@ -33,11 +33,12 @@ exports.handler = async function(event, context) {
         const response = await axios.post(
             'https://openrouter.ai/api/v1/chat/completions',
             {
-                model: "google/gemini-2.0-flash-exp:free", 
+                // Isse model ka error hamesha ke liye khatam ho jayega
+                model: "openrouter/auto", 
                 messages: [
                     {
                         role: "system",
-                        content: "You are a professional human editor. Rewrite the text to be 100% human-like. Output only rewritten text."
+                        content: "You are a professional human editor. Rewrite the following text to be 100% human-like, natural, and engaging. Remove any robotic patterns. Output ONLY the rewritten text."
                     },
                     {
                         role: "user",
@@ -47,11 +48,11 @@ exports.handler = async function(event, context) {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`, 
+                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://netlify.app'
                 },
-                timeout: 30000 
+                timeout: 30000
             }
         );
 
@@ -66,9 +67,9 @@ exports.handler = async function(event, context) {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-                error: "API Issue", 
-                detail: errorDetail 
+            body: JSON.stringify({
+                error: "API Issue",
+                detail: errorDetail
             })
         };
     }
