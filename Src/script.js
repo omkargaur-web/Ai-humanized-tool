@@ -26,16 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const icon = themeToggle.querySelector('i');
         if (icon) {
             if (document.body.classList.contains('light-theme')) {
-                icon.className = 'fas fa-moon'; // Light theme mein chand
+                icon.className = 'fas fa-moon'; 
             } else {
-                icon.className = 'fas fa-sun'; // Dark theme mein suraj
+                icon.className = 'fas fa-sun'; 
             }
         }
     }
 
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
-        
         if (savedTheme === 'light') {
             document.body.classList.remove('dark-theme');
             document.body.classList.add('light-theme');
@@ -48,15 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
-            if (document.body.classList.contains('dark-theme')) {
-                document.body.classList.remove('dark-theme');
-                document.body.classList.add('light-theme');
-                localStorage.setItem('theme', 'light');
-            } else {
-                document.body.classList.remove('light-theme');
-                document.body.classList.add('dark-theme');
-                localStorage.setItem('theme', 'dark');
-            }
+            document.body.classList.toggle('light-theme');
+            document.body.classList.toggle('dark-theme');
+            const currentTheme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+            localStorage.setItem('theme', currentTheme);
             updateThemeIcon();
         });
     }
@@ -67,8 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initNetlifyIdentity() {
         if (window.netlifyIdentity) {
-            console.log("Netlify Identity initialized");
-            
             window.netlifyIdentity.on('init', (user) => {
                 currentUser = user;
                 updateUserLimits();
@@ -78,18 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentUser = user;
                 updateUserLimits();
                 window.netlifyIdentity.close();
-                showNotification('✅ Login successful! Word limit increased.', 'success');
+                showNotification('✅ Login successful! Limit increased.', 'success');
             });
             
             window.netlifyIdentity.on('logout', () => {
                 currentUser = null;
                 updateUserLimits();
                 showNotification('👋 Logged out successfully.', 'info');
-            });
-            
-            window.netlifyIdentity.on('error', (err) => {
-                console.error('Netlify Identity Error:', err);
-                showNotification('Login error occurred. Please try again.', 'error');
             });
         } else {
             setTimeout(initNetlifyIdentity, 500);
@@ -101,68 +88,35 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (currentUser) {
             const roles = currentUser.app_metadata?.roles || [];
-            
             if (roles.includes('premium')) {
                 currentWordLimit = 2000;
                 wordCount.innerHTML = `Words: 0/2000 <span style="color: #a855f7; font-weight: 600;">(Premium)</span>`;
-                inputText.style.borderColor = '#a855f7';
             } else {
                 currentWordLimit = 500;
                 wordCount.innerHTML = `Words: 0/500 <span style="color: #4CAF50; font-weight: 600;">(Logged In)</span>`;
-                inputText.style.borderColor = '#4CAF50';
             }
         } else {
             currentWordLimit = 300;
             wordCount.innerHTML = `Words: 0/300`;
-            inputText.style.borderColor = '';
         }
-        
-        if (inputText) updateCounts();
+        updateCounts();
     }
 
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.innerHTML = message;
-        
-        notification.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            font-weight: 500;
-            animation: slideIn 0.3s ease;
-            max-width: 300px;
-        `;
-        
-        if (!document.getElementById('notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
-        }, 3000);
-    }
+    // =========================================
+    // NEW: FAQ ACCORDION LOGIC (SEO & UX Boost)
+    // =========================================
+    
+    const faqItems = document.querySelectorAll('.faq-item');
+    faqItems.forEach(item => {
+        const question = item.querySelector('.faq-question');
+        question.addEventListener('click', () => {
+            // Doosre saare open FAQs ko band karne ke liye
+            faqItems.forEach(otherItem => {
+                if (otherItem !== item) otherItem.classList.remove('active');
+            });
+            item.classList.toggle('active');
+        });
+    });
 
     // =========================================
     // WORD COUNT FUNCTIONS
@@ -175,181 +129,147 @@ document.addEventListener('DOMContentLoaded', () => {
         const words = text.trim() ? text.trim().split(/\s+/).length : 0;
         const chars = text.length;
         
-        if (currentUser) {
-            const roles = currentUser.app_metadata?.roles || [];
-            if (roles.includes('premium')) {
-                wordCount.innerHTML = `Words: ${words}/2000 <span style="color: #a855f7; font-weight: 600;">(Premium)</span>`;
-            } else {
-                wordCount.innerHTML = `Words: ${words}/500 <span style="color: #4CAF50; font-weight: 600;">(Logged In)</span>`;
-            }
+        // Dynamic color change based on limit
+        if (words > currentWordLimit) {
+            wordCount.style.color = '#f44336'; // Red for error
+            humanizeBtn.disabled = true;
         } else {
-            wordCount.innerHTML = `Words: ${words}/300`;
+            wordCount.style.color = ''; // Default color
+            humanizeBtn.disabled = words === 0;
         }
-        
+
+        // Display update
+        const statusLabel = currentUser ? (currentUser.app_metadata?.roles?.includes('premium') ? '(Premium)' : '(Logged In)') : '';
+        wordCount.innerHTML = `Words: ${words}/${currentWordLimit} <span style="font-weight: 600;">${statusLabel}</span>`;
         if (charCount) charCount.textContent = `Chars: ${chars}`;
-        
-        if (humanizeBtn) {
-            if (words === 0) {
-                humanizeBtn.disabled = true;
-                humanizeBtn.title = "Please enter some text";
-                wordCount.style.color = '';
-            } else if (words > currentWordLimit) {
-                humanizeBtn.disabled = true;
-                humanizeBtn.title = `Word limit exceeded (max ${currentWordLimit} words)`;
-                wordCount.style.color = '#f44336';
-            } else {
-                humanizeBtn.disabled = false;
-                humanizeBtn.title = "";
-                wordCount.style.color = '#4CAF50';
-            }
-        }
     }
 
     // =========================================
-    // BUTTON ACTIONS - PASTE BUTTON FIXED
+    // NOTIFICATION SYSTEM
     // =========================================
-    
-    // Paste button - FIXED VERSION
-    if (pasteBtn && inputText) {
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = message;
+        
+        notification.style.cssText = `
+            position: fixed; top: 80px; right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white; padding: 12px 24px; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;
+            font-weight: 500; animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 500);
+        }, 3000);
+    }
+
+    // =========================================
+    // BUTTON ACTIONS
+    // =========================================
+
+    if (pasteBtn) {
         pasteBtn.addEventListener('click', async () => {
             try {
-                // Try modern clipboard API first
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    const text = await navigator.clipboard.readText();
-                    inputText.value = text;
-                    updateCounts();
-                    showNotification('📋 Text pasted successfully!', 'success');
-                } else {
-                    // Fallback for older browsers
-                    inputText.focus();
-                    document.execCommand('paste');
-                    showNotification('Use Ctrl+V to paste', 'info');
-                }
+                const text = await navigator.clipboard.readText();
+                inputText.value = text;
+                updateCounts();
+                showNotification('📋 Pasted!', 'success');
             } catch (err) {
-                console.error('Paste error:', err);
-                // Agar permission error hai to alternative method
                 inputText.focus();
-                showNotification('📋 Press Ctrl+V to paste', 'info');
+                showNotification('Press Ctrl+V to paste', 'info');
             }
         });
     }
 
-    // Clear button
-    if (clearBtn && inputText) {
+    if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             inputText.value = '';
             if (outputText) outputText.value = '';
             updateCounts();
-            if (outputWordCount) outputWordCount.textContent = "Words: 0";
-            showNotification('🧹 All cleared!', 'info');
+            showNotification('🧹 Cleared!', 'info');
         });
     }
 
-    // Copy button
-    if (copyBtn && outputText) {
-        copyBtn.addEventListener('click', async () => {
-            if (!outputText.value.trim()) {
-                showNotification('Nothing to copy!', 'warning');
-                return;
-            }
-            
-            try {
-                await navigator.clipboard.writeText(outputText.value);
-                const originalHTML = copyBtn.innerHTML;
-                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                showNotification('📋 Copied to clipboard!', 'success');
-                setTimeout(() => copyBtn.innerHTML = originalHTML, 2000);
-            } catch(e) {
-                outputText.select();
-                document.execCommand('copy');
-                showNotification('📋 Copied!', 'success');
-            }
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            if (!outputText.value) return;
+            navigator.clipboard.writeText(outputText.value);
+            showNotification('📋 Copied!', 'success');
         });
     }
 
     // =========================================
-    // API CALL FUNCTION - DEMO MODE REMOVED
+    // API EXECUTION
     // =========================================
-    
+
     if (humanizeBtn) {
         humanizeBtn.addEventListener('click', async () => {
-            const textToConvert = inputText.value.trim();
-            
-            if (!textToConvert) {
-                showNotification('Please enter some text to humanize!', 'warning');
-                return;
-            }
+            const text = inputText.value.trim();
+            if (!text) return;
 
-            const words = textToConvert.split(/\s+/).length;
-            if (words > currentWordLimit) {
-                showNotification(`Word limit exceeded! Maximum ${currentWordLimit} words allowed.`, 'error');
-                return;
-            }
-
-            // UI Loading state
             humanizeBtn.disabled = true;
-            if (btnText) btnText.style.display = 'none';
-            if (processingText) processingText.style.display = 'inline';
-            outputText.value = "🤖 AI is humanizing your text... Please wait.";
+            btnText.style.display = 'none';
+            processingText.style.display = 'inline';
+            outputText.value = "🤖 Humanizing your text... Please wait.";
 
             try {
-                // API call to Netlify Function
                 const response = await fetch("/.netlify/functions/humanize", {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
-                    body: JSON.stringify({ 
-                        text: textToConvert
-                    })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text })
                 });
 
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "API Error");
 
-                if (!response.ok) {
-                    throw new Error(data.error || data.detail || "Server connection failed");
-                }
-
-                // Success: Show humanized text
-                outputText.value = data.output || "Error: No output received";
-                
-                // Update output word count
+                outputText.value = data.output;
                 if (outputWordCount) {
-                    const outWords = outputText.value.trim().split(/\s+/).length;
+                    const outWords = data.output.trim().split(/\s+/).length;
                     outputWordCount.textContent = `Words: ${outWords}`;
                 }
-
-                showNotification('✅ Text humanized successfully!', 'success');
-
+                showNotification('✅ Done!', 'success');
             } catch (error) {
-                console.error("API Error:", error);
-                outputText.value = `Error: ${error.message}. Please try again.`;
-                showNotification('❌ API Error: ' + error.message, 'error');
+                outputText.value = `Error: ${error.message}`;
+                showNotification('❌ Error occurred', 'error');
             } finally {
                 humanizeBtn.disabled = false;
-                if (btnText) btnText.style.display = 'inline';
-                if (processingText) processingText.style.display = 'none';
+                btnText.style.display = 'inline';
+                processingText.style.display = 'none';
             }
         });
     }
 
-    // =========================================
-    // INPUT EVENT LISTENER
-    // =========================================
-    
-    if (inputText) {
-        inputText.addEventListener('input', updateCounts);
-    }
-
-    // =========================================
-    // INITIALIZATION
-    // =========================================
-    
+    // Init
+    if (inputText) inputText.addEventListener('input', updateCounts);
     initTheme();
     initNetlifyIdentity();
-    
-    setTimeout(() => {
-        updateCounts();
-    }, 100);
+});
+// View All FAQs Logic
+const viewAllBtn = document.getElementById('viewAllFaqs');
+const moreFaqs = document.getElementById('more-faqs');
+
+if (viewAllBtn && moreFaqs) {
+    viewAllBtn.addEventListener('click', () => {
+        if (moreFaqs.style.display === "none") {
+            moreFaqs.style.display = "block";
+            viewAllBtn.innerHTML = 'Show Less <i class="fas fa-chevron-up"></i>';
+            moreFaqs.style.animation = "fadeIn 0.5s ease";
+        } else {
+            moreFaqs.style.display = "none";
+            viewAllBtn.innerHTML = 'View All Questions <i class="fas fa-chevron-down"></i>';
+        }
+    });
+}
+
+// Har individual question ko clickable banane ke liye (Accordion style)
+document.querySelectorAll('.faq-question').forEach(q => {
+    q.addEventListener('click', () => {
+        const item = q.parentElement;
+        item.classList.toggle('active');
+    });
 });
