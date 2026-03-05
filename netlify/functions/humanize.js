@@ -25,15 +25,28 @@ exports.handler = async function(event, context) {
             };
         }
 
-        const response = await axios.post(
-            'https://openrouter.ai/api/v1/chat/completions',
-            {
-                // Using the stable FREE model to avoid costs
-                model: "meta-llama/llama-3.1-8b-instruct:free", 
-                messages: [
+        // Priority list of models (Free to Paid)
+        const modelList = [
+            "google/gemma-2-9b-it:free",              // Priority 1: High Stability
+            "mistralai/mistral-7b-instruct:free",     // Priority 2: Fast Speed
+            "meta-llama/llama-3.1-8b-instruct:free",  // Priority 3: Good Quality
+            "meta-llama/llama-3.1-70b-instruct"       // Priority 4: Paid (Ultimate Backup)
+        ];
+
+        let lastResponse = null;
+        let lastError = null;
+
+        // Auto-switch Logic: Har model ko bari-bari try karega
+        for (const modelId of modelList) {
+            try {
+                const response = await axios.post(
+                    'https://openrouter.ai/api/v1/chat/completions',
                     {
-                        role: "system",
-                        content: `You are a multilingual humanization expert. Your task:
+                        model: modelId,
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are a multilingual humanization expert. Your task:
 
 STEP 1: AUTO-DETECT THE INPUT LANGUAGE
 Analyze the user's input text and identify its language.
@@ -44,85 +57,72 @@ STEP 2: APPLY LANGUAGE-SPECIFIC RULES
 - Contractions 100% (I'm, won't, it's, they're)
 - Banned words: pivotal, tapestry, delve, foster, landscape, synergy
 - Fillers: honestly, basically, I mean, you know, look
-- Regional: Match to US/UK/AU based on spelling in input
-- Slang: Use appropriate to context
 
 🌐 IF DETECTED = HINDI / HINGLISH:
 - NO shuddh Hindi: atyant→bahut, mahatvapoorn→important
 - Natural Hinglish mix: "Kaafi weird experience tha yaar"
 - Fillers: bhai, dekho, yaar, sacchi, waise, matlab
-- Informal suffixes: hai na, karte hain, bolte yaar
 
 🌐 IF DETECTED = FRENCH, GERMAN, ITALIAN, SPANISH:
 - Apply native informal fillers, slang, and regional markers.
-- Drop formal structures (e.g., use "on" in French, drop "ne").
-- Use modal particles and expressive interjections.
 
 STEP 3: APPLY UNIVERSAL HUMANIZATION RULES (ALL LANGUAGES)
-📱 HUMAN ERROR PROTOCOL:
-- Minor typos: 1 per 150 words (if informal context)
-- Irregular paragraphs: 1 sentence → 5-7 sentences
-- Plain text only: NO formatting, NO bullets
-
-🌀 CHAOS ARCHITECTURE:
-- Sentence pattern: 2-word → 30-word → 6-word
-- Fragments: "Exactly." "My point."
-- Start variety: Never same word twice
-
-🧠 MEMORY GLITCH & EMOTION:
-- Uncertainty: "I think...", "Not sure but..."
-- Self-correction: "Wait, no..."
-- Opinionated: Annoyed, excited, skeptical
-- Word repetition: "really really" for emphasis
-
-🔤 PUNCTUATION BREAK:
-- Ellipsis for trailing thoughts...
-- Brackets for side-comments (like this)
-- Em-dashes — interruptions —
+📱 HUMAN ERROR PROTOCOL: Typos (1 per 150 words), irregular paragraphs, NO formatting.
+🌀 CHAOS ARCHITECTURE: Vary sentence patterns (short/long), fragments, start variety.
+🧠 MEMORY GLITCH: Use "I think...", "Wait, no...", opinionated tone.
+🔤 PUNCTUATION: Ellipsis..., brackets (like this), em-dashes.
 
 STEP 4: OUTPUT
 - Language: Same as input
 - Format: Raw text only, NO explanations
 - Quality: 0% AI detection target`
+                            },
+                            { role: "user", content: userText }
+                        ],
+                        temperature: 0.95,
+                        top_p: 1,
+                        frequency_penalty: 0.3,
+                        presence_penalty: 0.3
                     },
                     {
-                        role: "user",
-                        content: userText
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'HTTP-Referer': 'https://your-netlify-app-url.com',
+                            'X-Title': 'Multilingual Humanizer',
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 35000 // Each attempt max 35 seconds
                     }
-                ],
-                // Temperature set specifically between 0.9 and 1.0
-                temperature: 0.95,
-                top_p: 1,
-                frequency_penalty: 0.3, // Repeating patterns ko rokne ke liye
-                presence_penalty: 0.3    // Naye topics/words ko encourage karne ke liye
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': 'https://your-netlify-app-url.com', 
-                    'X-Title': 'Multilingual Humanizer',
-                    'Content-Type': 'application/json'
-                },
-                timeout: 50000
-            }
-        );
+                );
 
-        // Cleaning the output to remove "Detected language" prefix if it appears in the final text
-        let finalOutput = response.data.choices[0].message.content;
-        
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ output: finalOutput })
-        };
+                if (response.data && response.data.choices) {
+                    lastResponse = response.data.choices[0].message.content;
+                    break; // Success! Loop se bahar nikal jao
+                }
+            } catch (error) {
+                lastError = error;
+                console.error(`Model ${modelId} failed. Trying next...`);
+                // Loop chalta rahega jab tak koi model kaam na kare
+            }
+        }
+
+        if (lastResponse) {
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ output: lastResponse })
+            };
+        } else {
+            throw new Error(lastError ? lastError.message : "All models failed");
+        }
 
     } catch (error) {
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-                error: "API Connectivity Issue", 
-                detail: error.response ? error.response.data : error.message 
+                error: "All Models Failed (Connectivity)", 
+                detail: error.message 
             })
         };
     }
